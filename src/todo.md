@@ -1,4 +1,7 @@
 DONE: add indexer.exe to the get_deps.sh script
+- add separators or box highlights around hovered error in formatted error list
+- generate array of mipmaps with vips_thumbnail and change Image to store a vector of std::pair<std::size_t, unsigned char*>
+- gl not clamping to border but to edge?
 - web api backend replacement for images.cpp?
 - add "prev/next chapter" button
 DONE: add is_moving_window flag or something so moving too fast doesn't randomly quit when your mouse moves off the titlebar

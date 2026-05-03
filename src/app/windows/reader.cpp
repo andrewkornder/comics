@@ -157,7 +157,7 @@ void AppChapterReader::render_pages(AppRoot& root, PagedDisplay& dis) {
 
     ImGui::Text("Aspect Ratio:"); 
     ImGui::SameLine();
-    ImGui::DragFloat("##aspect_input", &dis.width, 0.1, 1, 4, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::DragFloat("##aspect_input", &dis.width, 0.1, 0, 4, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 
     if (ImGui::BeginChild("##paged_cnt", {-1, -1})) {
         constexpr static float default_aspect = 2.0f / 3.0f;

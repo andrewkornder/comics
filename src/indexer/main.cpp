@@ -10,6 +10,8 @@
 #include <glaze/glaze.hpp>
 #include <zip.h>
 
+#include <vips/vips.h>
+
 
 template<typename ...T>
 struct staged_func_result {};

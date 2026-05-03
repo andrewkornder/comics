@@ -2,9 +2,7 @@
 
 #include "../app.h"
 #include "../utils.h"
-
-#include <stb/stb_image.h>
-#include <stb/stb_image_resize2.h>
+#include "image_loader.h"
 
 #include <zip.h>
 
@@ -21,15 +19,6 @@
 #include <thread>
 
 using namespace std::literals;
-
-
-struct Image {
-    int w, h, up;
-    std::uint32_t id;
-    unsigned char* data;
-    unsigned char* upscaled;
-};
-
 
 using file_ident_t = std::pair<std::string, std::string>;
 
@@ -146,29 +135,10 @@ struct ArchiveLoader {
 
             if (token.stop_requested()) break;
 
-            Image info { .id = 0 };
-            info.data = stbi_load_from_memory(
-                buf.get(), (int) size, 
-                &info.w, &info.h, NULL, 4
-            );
-
-            if (token.stop_requested()) {
-                stbi_image_free(info.data);
+            Image info = { .up = upscale_factor, .id = 0 };
+            if (load_image_from_buffer(token, info, buf.get(), size)) {
+                append(std::move(*task), info);
             }
-            
-            if (upscale_factor > 1) {
-                info.upscaled = (unsigned char*) stbir_resize(
-                    (void*) info.data, info.w, info.h, 0, NULL,
-                    upscale_factor * info.w, upscale_factor * info.h, 0, 
-                    STBIR_RGBA, STBIR_TYPE_UINT8,
-                    STBIR_EDGE_CLAMP, STBIR_FILTER_CUBICBSPLINE
-                );
-                info.up = upscale_factor;
-            } else {
-                info.up = 0;
-                info.upscaled = nullptr;
-            }
-            append(std::move(*task), info);
         }
         zip_close(zip);
     }
@@ -215,35 +185,150 @@ struct AppImageLoader::ImageCache {
             glDeleteTextures(1, &image.id);
         }
         if (image.data) {
-            stbi_image_free(image.data);
+            free(image.data);
         }
         if (image.upscaled && image.upscaled != image.data) {
-            stbi_image_free(image.upscaled);
+            free(image.upscaled);
         }
     }
 
-    std::uint32_t create_texture_for_image(int w, int h, unsigned char* data) {
+    GLuint shader = 0;
+
+    GLuint compile_shader() {
+        auto compileShader = [](GLenum type, const char* source) -> GLuint {
+            GLuint shader = glCreateShader(type);
+            glShaderSource(shader, 1, &source, nullptr);
+            glCompileShader(shader);
+
+            GLint success;
+            glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+            if (!success) {
+                GLint logLength;
+                glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+                std::vector<char> log(logLength);
+                glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+                dbg("shader failed to compile: {}", log.data());
+            }
+            return shader;
+        };
+
+        const char* vertex_source = R"(
+            #version 330 core
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aUV;
+            layout (location = 2) in vec4 aColor;
+
+            uniform mat4 ProjMtx;
+            out vec2 Frag_UV;
+            out vec4 Frag_Color;
+
+            void main() {
+                Frag_UV = aUV;
+                Frag_Color = aColor;
+                gl_Position = ProjMtx * vec4(aPos.xy, 0, 1);
+            }
+        )";
+        const char* fragment_source = R"(
+            #version 330 core
+            in vec2 Frag_UV;
+            in vec4 Frag_Color;
+            out vec4 Out_Color;
+
+            uniform sampler2D Texture;
+
+            void main() {
+                if (Frag_UV.x < 0.0 || Frag_UV.x > 1.0 || Frag_UV.y < 0.0 || Frag_UV.y > 1.0) {
+                    Out_Color = vec4(0, 0, 0, 0);
+                } else {
+                    // Multiply by Frag_Color to respect ImGui's 'tint_col' parameter
+                    Out_Color = texture(Texture, Frag_UV) * Frag_Color;
+                }
+            }
+        )";
+        GLuint vShader = compileShader(GL_VERTEX_SHADER, vertex_source);
+        GLuint fShader = compileShader(GL_FRAGMENT_SHADER, fragment_source);
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vShader);
+        glAttachShader(program, fShader);
+        glLinkProgram(program);
+
+        GLint success;
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success) {
+            GLint logLength;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+            std::vector<char> log(logLength);
+            glGetProgramInfoLog(program, logLength, nullptr, log.data());
+            dbg("shader program link failed: {}", log.data());
+        }
+
+        glDeleteShader(vShader);
+        glDeleteShader(fShader);
+        return program;
+    }
+
+
+    std::uint32_t create_texture_for_image(int w, int h, int bands, unsigned char* data) {
+        if (shader == 0) {
+            shader = compile_shader();
+            assert(glGetError() == GL_NO_ERROR);
+        }
+
+        GLenum internal_storage, external_storage;
+        bool has_swizzle = false;
+        std::array<GLint, 4> swizzle_mask;
+        switch (bands) {
+            case 1: {
+                internal_storage = GL_R8; external_storage = GL_RED;
+                swizzle_mask = {GL_RED, GL_RED, GL_RED, GL_ALPHA};
+                has_swizzle = true;
+                break;
+            }
+            case 2: {
+                internal_storage = GL_RG8; external_storage = GL_RG;
+                swizzle_mask = {GL_RED, GL_RED, GL_RED, GL_GREEN};
+                has_swizzle = true;
+                break;
+            }
+            case 3: {
+                internal_storage = GL_RGB8; external_storage = GL_RGB;
+                break;
+            }
+            case 4: {
+                internal_storage = GL_RGBA8; external_storage = GL_RGBA;
+                break;
+            }
+            default: {
+                dbg("unknown number of bands in image: {}", bands);
+                return 0;
+            }
+        }
+
         std::uint32_t id;
         glGenTextures(1, &id);
         glBindTexture(GL_TEXTURE_2D, id);
 
+        if (has_swizzle) {
+            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask.data());
+        }
+
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_storage, w, h, 0, external_storage, GL_UNSIGNED_BYTE, data);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        assert(glGetError() == GL_NO_ERROR);
         return id;
     }
     
     Image load_image_from_disk(std::filesystem::path path) {
         dbg("loading image from disk: {}", path.string());
         Image image {};
-        image.data = stbi_load(path.string().c_str(), &image.w, &image.h, nullptr, 4);
-        image.id = create_texture_for_image(image.w, image.h, image.data);
+        load_image_from_file(image, path.string());
+        image.id = create_texture_for_image(image.w, image.h, image.bands, image.data);
 
         image.upscaled = image.data;
         image.up = 1;
@@ -337,14 +422,14 @@ struct AppImageLoader::ImageCache {
         if (image.w > 0) {
             if (image.upscaled && image.upscaled != image.data) {
                 image.id = create_texture_for_image(
-                    image.w * image.up, image.h * image.up,
+                    image.w * image.up, image.h * image.up, image.bands,
                     image.upscaled
                 );
-                stbi_image_free(image.upscaled);
+                free(image.upscaled);
                 image.upscaled = nullptr;
             } else {
                 image.id = create_texture_for_image(
-                    image.w, image.h, image.data
+                    image.w, image.h, image.bands, image.data
                 );
             }
         }
@@ -394,7 +479,7 @@ struct AppImageLoader::ImageCache {
         if (it == cache.end()) {
             return { false, placeholders.at(NonImageType::Loading) };
         }
-        if (it->second.w <= 0) {
+        if (it->second.w <= 0 || it->second.id == 0) {
             return { true, placeholders.at(NonImageType::BadImage) };
         }
         return { true, it->second };
@@ -494,10 +579,39 @@ struct AppImageLoader::ImageCache {
         return true;
     }
 
+    void add_imgui_image(int id, float w, float h, float u0, float v0, float u1, float v1) {
+        const auto pos = ImGui::GetCursorScreenPos();
+
+        ImGui::GetWindowDrawList()->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
+            const auto shader = * (GLuint*) cmd->UserCallbackData;
+            glUseProgram(shader);
+            glBindSampler(0, 0);
+
+            float L = ImGui::GetIO().DisplaySize.x * 0.0f;
+            float R = ImGui::GetIO().DisplaySize.x;
+            float T = ImGui::GetIO().DisplaySize.y * 0.0f;
+            float B = ImGui::GetIO().DisplaySize.y;
+
+            const float ortho_projection[4][4] = {
+                { 2.0f/(R-L),   0.0f,         0.0f,   0.0f },
+                { 0.0f,         2.0f/(T-B),   0.0f,   0.0f },
+                { 0.0f,         0.0f,        -1.0f,   0.0f },
+                { (R+L)/(L-R), (T+B)/(B-T),   0.0f,   1.0f },
+            };
+
+            GLint proj_loc = glGetUniformLocation(shader, "ProjMtx");
+            if (proj_loc != -1) {
+                glUniformMatrix4fv(proj_loc, 1, GL_FALSE, &ortho_projection[0][0]);
+            }
+        }, &shader);
+        ImGui::GetWindowDrawList()->AddImage(id, pos, {pos.x + w, pos.y + h}, {u0, v0}, {u1, v1});
+        ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+    }
+
     bool render_empty(AppRoot& root, float w, float h) {
         const Image& image = placeholders.at(NonImageType::Loading);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
-        ImGui::Image(image.id, ImVec2(w, h));
+        add_imgui_image(image.id, w, h, 0, 0, 1, 1);
         ImGui::PopStyleVar();
         return true;
     }
@@ -510,7 +624,7 @@ struct AppImageLoader::ImageCache {
 
         const auto cursor = ImGui::GetCursorPos();
         ImGui::SetNextItemAllowOverlap();
-        ImGui::Image(image.id, ImVec2(w, h), ImVec2(u0, v0), ImVec2(u1, v1));
+        add_imgui_image(image.id, w, h, u0, v0, u1, v1);
         ImGui::SetCursorPos(cursor);
         ImGui::InvisibleButton("##inner_page_inv_btn", {w, h});
 
@@ -524,7 +638,7 @@ struct AppImageLoader::ImageCache {
         accessed.emplace(key);
 
         const auto it = cache.find(key);
-        if (it == cache.end() || it->second.w <= 0) {
+        if (it == cache.end() || it->second.w <= 0 || it->second.id == 0) {
             return;
         }
 

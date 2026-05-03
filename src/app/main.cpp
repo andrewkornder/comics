@@ -1,11 +1,14 @@
 #include "app.h"
 
 #include <argparse/argparse.hpp>
+#include <vips/vips.h>
 
 #include <filesystem>
 
 
 int main(int argc, char** argv) {
+    vips_init(argv[0]);
+
     argparse::ArgumentParser parser(argv[0]);
     parser.add_argument("root")
         .help("where are the generated resource files located")
