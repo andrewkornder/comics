@@ -94,10 +94,13 @@ void AppRoot::render_base_window(PendingAppUpdates& up) {
     maximize_next_window();
     if (ImGui::Begin("root window", nullptr, cflags)) {
         if (ImGui::BeginMenuBar()) {
-            if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && (up.is_dragging || ImGui::IsWindowHovered())) {
                 const ImVec2 dv = ImGui::GetIO().MouseDelta;
                 up.x += (int) dv.x;
                 up.y += (int) dv.y;
+                up.is_dragging = true;
+            } else {
+                up.is_dragging = false;
             }
 
             if (ImGui::MenuItem("Close")) { up.close = true; }
@@ -150,12 +153,14 @@ void AppRoot::render_window_state(PendingAppUpdates& up) {
         "    .x = {}, .y = {},\n"
         "    .w = {}, .h = {},\n"
         "    .maximized = {},\n"
-        "    .minimized = {}\n"
+        "    .minimized = {},\n"
+        "    .is_dragging = {}\n"
         "}};",
         (void*) window, 
         state.x, state.y, 
         state.w, state.h, 
-        state.maximized, state.minimized
+        state.maximized, state.minimized, 
+        state.is_dragging
     );
     ImGui::TextUnformatted(info.c_str(), info.c_str() + info.size());
 

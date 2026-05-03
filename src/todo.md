@@ -1,8 +1,7 @@
-- add indexer.exe to the get_deps.sh script
+DONE: add indexer.exe to the get_deps.sh script
 - web api backend replacement for images.cpp?
-
 - add "prev/next chapter" button
-- add is_moving_window flag or something so moving too fast doesn't randomly quit when your mouse moves off the titlebar
+DONE: add is_moving_window flag or something so moving too fast doesn't randomly quit when your mouse moves off the titlebar
 DONE: fix bad nonoptional error filter (filters by the first option if not provided??)
 DONE: reworking the image renderer to use an InvisibleButton instead of a customized ImageButton has broken the dragging for the image inspect
 - segfault when rapidly changing image cache upscaling factor from 4 to 1 (maybe to zero? crashed as slamming it to the left)

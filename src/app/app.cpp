@@ -175,7 +175,11 @@ void AppRoot::mainloop() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        PendingAppUpdates up {};
+        PendingAppUpdates up {
+            .close = false, .maximize = false, .minimize = false,
+            .w {}, .h {}, .x {}, .y {},
+            .is_dragging = state.is_dragging,
+        };
         glfwGetWindowPos(window, &up.x, &up.y);
         glfwGetWindowSize(window, &up.w, &up.h);
         render(up);
@@ -243,6 +247,8 @@ void AppRoot::apply_updates(const PendingAppUpdates& up) {
         state.w = up.w;
         state.h = up.h;
     }
+    
+    state.is_dragging = up.is_dragging;
 }
 
 AppRoot::~AppRoot() {

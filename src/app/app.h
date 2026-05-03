@@ -62,6 +62,8 @@ struct PendingAppUpdates {
     bool minimize;
     int w, h;
     int x, y;
+
+    bool is_dragging;
 };
 
 struct AppData {
@@ -69,6 +71,8 @@ struct AppData {
     int w, h;
     bool maximized;
     bool minimized;
+
+    bool is_dragging;
 };
 
 
