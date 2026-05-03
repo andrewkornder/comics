@@ -16,9 +16,6 @@
 [submodule "external/clip"]
 	path = external/clip
 	url = https://github.com/dacap/clip/
-[submodule "external/zip"]
-	path = external/zip
-	url = https://github.com/kuba--/zip/
 [submodule "external/rapidfuzz-cpp"]
 	path = external/rapidfuzz-cpp
 	url = https://github.com/rapidfuzz/rapidfuzz-cpp
@@ -26,3 +23,6 @@
 	path = external/imgui
 	url = https://github.com/ocornut/imgui
 	branch = docking
+[submodule "external/zip"]
+	path = external/zip
+	url = https://github.com/andrewkornder/zip
