@@ -39,6 +39,8 @@ add_subdirectory(external/glaze)
 
 add_subdirectory(external/argparse)
 
+add_subdirectory(external/rapidfuzz-cpp)
+
 add_subdirectory(external/zip)
 
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
@@ -85,7 +87,6 @@ add_executable(reader ${COMMON_SOURCE_FILES} ${GUI_SOURCE_FILES}
 target_include_directories(reader PRIVATE
     external 
     external/imgui
-    external/rapidfuzz-cpp
     ${VIPS_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
 )
@@ -93,6 +94,7 @@ target_link_libraries(reader PRIVATE
     zip::zip
     glaze::glaze
     re2::re2
+    rapidfuzz::rapidfuzz
     clip
     jq
     ${VIPS_LIBRARIES}
