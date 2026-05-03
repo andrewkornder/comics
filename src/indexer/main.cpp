@@ -193,7 +193,7 @@ auto get_all_images(std::filesystem::path out, std::vector<ParsedManga> data) {
 int main(int argc, char** argv) {
     vips_init(argv[0]);
 
-    argparse::ArgumentParser parser;
+    argparse::ArgumentParser parser(argv[0]);
     parser.add_argument("root").help("the library root path to be scanned");
     parser.add_argument("-c", "--clean").help("rebuild cache from scratch")
         .flag();

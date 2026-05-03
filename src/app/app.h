@@ -74,8 +74,8 @@ struct AppData {
 
 struct AppImageLoader {
 #if defined(_WIN32) || defined(_WIN64)
-    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(images/loading.png)";
-    constexpr static std::string_view ERROR_PLACEHOLDER = R"(images/bad_image.png)";
+    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(images\loading.png)";
+    constexpr static std::string_view ERROR_PLACEHOLDER = R"(images\bad_image.png)";
 #else
     constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(images/loading.png)";
     constexpr static std::string_view ERROR_PLACEHOLDER = R"(images/bad_image.png)";
@@ -335,7 +335,7 @@ class AppRoot {
         R"(fonts\JetBrainsMono-2.304\fonts\ttf\JetBrainsMono-Regular.ttf)",
         R"(fonts\Noto_Sans\static\NotoSans-Regular.ttf)"
     };
-    constexpr static std::string_view ICON_FILE = R"(icon.png)";
+    constexpr static std::string_view ICON_FILE = R"(images\icon.png)";
 #else
     constexpr static std::array FONTS = {
         R"(fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Regular.ttf)",

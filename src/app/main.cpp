@@ -6,9 +6,9 @@
 
 
 int main(int argc, char** argv) {
-    argparse::ArgumentParser parser;
+    argparse::ArgumentParser parser(argv[0]);
     parser.add_argument("root")
-        .help("where are the generated resource files located (default=./res/)")
+        .help("where are the generated resource files located")
         .default_value(std::string("res"));
 
     try {
@@ -18,8 +18,9 @@ int main(int argc, char** argv) {
         std::cerr << parser;
         return 1;
     }
-
-    AppRoot app(parser.get<std::string>("root"));
+    
+    std::filesystem::path path = parser.get<std::string>("root");
+    AppRoot app(canonical(path).string());
     
     if (const int ec = app.init()) {
         return ec;

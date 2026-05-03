@@ -81,6 +81,7 @@ int AppRoot::init() {
     glfwSetWindowSizeLimits(window, MIN_WINDOW_W, MIN_WINDOW_H, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     {
+        dbg("loading icon file at {}", get_path_of(ICON_FILE));
         GLFWimage icon;
         icon.pixels = stbi_load(
             get_path_of(ICON_FILE).c_str(),

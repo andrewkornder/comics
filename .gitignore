@@ -68,5 +68,7 @@ vcpkg_installed/
 Testing/
 .cache/
 
+imgui.ini
+
 res/data/
 res/fonts/
