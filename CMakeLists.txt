@@ -95,6 +95,7 @@ target_link_libraries(reader PRIVATE
     glaze::glaze
     re2::re2
     rapidfuzz::rapidfuzz
+    argparse
     clip
     jq
     ${VIPS_LIBRARIES}

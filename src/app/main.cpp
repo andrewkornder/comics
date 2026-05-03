@@ -1,16 +1,25 @@
 #include "app.h"
 
+#include <argparse/argparse.hpp>
+
 #include <filesystem>
 
 
 int main(int argc, char** argv) {
-    std::string_view program = argv[0];
-    if (const auto i = program.find_last_of("/\\"); i != std::string_view::npos) {
-        program = program.substr(0, i);
-    } else {
-        program = ".";
+    argparse::ArgumentParser parser;
+    parser.add_argument("root")
+        .help("where are the generated resource files located (default=./res/)")
+        .default_value(std::string("res"));
+
+    try {
+        parser.parse_args(argc, argv);
+    } catch (const std::exception& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << parser;
+        return 1;
     }
-    AppRoot app(std::filesystem::absolute(program).string());
+
+    AppRoot app(parser.get<std::string>("root"));
     
     if (const int ec = app.init()) {
         return ec;

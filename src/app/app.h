@@ -74,11 +74,11 @@ struct AppData {
 
 struct AppImageLoader {
 #if defined(_WIN32) || defined(_WIN64)
-    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(res\loading.png)";
-    constexpr static std::string_view ERROR_PLACEHOLDER = R"(res\bad_image.png)";
+    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(images/loading.png)";
+    constexpr static std::string_view ERROR_PLACEHOLDER = R"(images/bad_image.png)";
 #else
-    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(res/loading.png)";
-    constexpr static std::string_view ERROR_PLACEHOLDER = R"(res/bad_image.png)";
+    constexpr static std::string_view UNKNOWN_PLACEHOLDER = R"(images/loading.png)";
+    constexpr static std::string_view ERROR_PLACEHOLDER = R"(images/bad_image.png)";
 #endif
 
     struct ImageCache;
@@ -110,9 +110,9 @@ struct AppJSONExplorer {
 
     constexpr static std::chrono::milliseconds min_update_ms{150};
 #if defined(_WIN32) || defined(_WIN64)
-    constexpr static std::string_view JQ_PATH = R"(res\jq.exe)";
+    constexpr static std::string_view JQ_PATH = R"(jq.exe)";
 #else
-    constexpr static std::string_view JQ_PATH = R"(res/jq)";
+    constexpr static std::string_view JQ_PATH = R"(jq)";
 #endif
 
     using result_t = std::pair<std::string, std::string>;
@@ -277,9 +277,9 @@ struct AppMangaList {
 
 struct AppIndexLoader {
 #if defined(_WIN32) || defined(_WIN64)
-    constexpr static std::string_view FILE_DB_PATH = R"(res\data\info.zip)";
+    constexpr static std::string_view FILE_DB_PATH = R"(data\info.zip)";
 #else
-    constexpr static std::string_view FILE_DB_PATH = R"(res/data/info.zip)";
+    constexpr static std::string_view FILE_DB_PATH = R"(data/info.zip)";
 #endif
 
     struct AppIndexLoaderBase;
@@ -299,9 +299,9 @@ struct AppIndexLoader {
 
 struct AppMangaLoader {
 #if defined(_WIN32) || defined(_WIN64)
-    constexpr static std::string_view MANGA_DB_PATH = R"(res\data\manga.json)";
+    constexpr static std::string_view MANGA_DB_PATH = R"(data\manga.json)";
 #else
-    constexpr static std::string_view MANGA_DB_PATH = R"(res/data/manga.json)";
+    constexpr static std::string_view MANGA_DB_PATH = R"(data/manga.json)";
 #endif
 
     std::string path;
@@ -332,16 +332,16 @@ class AppRoot {
 
 #if defined(_WIN32) || defined(_WIN64)
     constexpr static std::array FONTS = {
-        R"(res\fonts\JetBrainsMono-2.304\fonts\ttf\JetBrainsMono-Regular.ttf)",
-        R"(res\fonts\Noto_Sans\static\NotoSans-Regular.ttf)"
+        R"(fonts\JetBrainsMono-2.304\fonts\ttf\JetBrainsMono-Regular.ttf)",
+        R"(fonts\Noto_Sans\static\NotoSans-Regular.ttf)"
     };
-    constexpr static std::string_view ICON_FILE = R"(res\icon.png)";
+    constexpr static std::string_view ICON_FILE = R"(icon.png)";
 #else
     constexpr static std::array FONTS = {
-        R"(res/fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Regular.ttf)",
-        R"(res/fonts/Noto_Sans/static/NotoSans-Regular.ttf)"
+        R"(fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Regular.ttf)",
+        R"(fonts/Noto_Sans/static/NotoSans-Regular.ttf)"
     };
-    constexpr static std::string_view ICON_FILE = R"(res/icon.png)";
+    constexpr static std::string_view ICON_FILE = R"(images/icon.png)";
 #endif
 
     std::string here;
