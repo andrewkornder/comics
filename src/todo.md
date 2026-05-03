@@ -1,3 +1,6 @@
+- add indexer.exe to the get_deps.sh script
+- web api backend replacement for images.cpp?
+
 - add "prev/next chapter" button
 - add is_moving_window flag or something so moving too fast doesn't randomly quit when your mouse moves off the titlebar
 DONE: fix bad nonoptional error filter (filters by the first option if not provided??)

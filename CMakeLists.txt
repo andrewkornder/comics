@@ -83,6 +83,8 @@ add_executable(reader ${COMMON_SOURCE_FILES} ${GUI_SOURCE_FILES}
     external/imgui/misc/cpp/imgui_stdlib.cpp
     external/imgui/backends/imgui_impl_glfw.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
+
+    res/app.rc
 )
 target_include_directories(reader PRIVATE
     external 
@@ -106,3 +108,11 @@ if (WIN32)
 else()
     target_link_libraries(reader PRIVATE GLEW GL OpenGL glfw)
 endif()
+
+add_custom_target(GetDeps ALL
+    COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/get_deps.sh"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Gathering runtime dependencies"
+    VERBATIM
+)
+add_dependencies(GetDeps reader indexer)

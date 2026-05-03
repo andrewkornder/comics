@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
     argparse::ArgumentParser parser(argv[0]);
     parser.add_argument("root")
         .help("where are the generated resource files located")
-        .default_value(std::string("res"));
+        .default_value(std::string("../res"));
 
     try {
         parser.parse_args(argc, argv);
@@ -20,6 +20,11 @@ int main(int argc, char** argv) {
     }
     
     std::filesystem::path path = parser.get<std::string>("root");
+    if (!exists(path)) {
+        std::cerr << "root path does not exist: " << path.string() << std::endl;
+        return 1;
+    }
+
     AppRoot app(canonical(path).string());
     
     if (const int ec = app.init()) {

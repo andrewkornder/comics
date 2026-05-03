@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+# set -euo pipefail
 
 mkdir -p bin
-cp $(ldd bin/reader | awk '/=>/ {print $3}' | grep -i "/$MSYSTEM/" | sort -u) bin/
+
+for file in bin/*.exe; do
+    deps=$(ldd "$file" | awk '/=>/ {print $3}' | grep -i "^/$MSYSTEM/" | sort -u)
+    if [ -n "$deps" ]; then
+        cp -uv $deps bin/
+    fi
+done
