@@ -1,5 +1,6 @@
 #include "../app.h"
 #include "../utils.h"
+#include "../colors.h"
 #include "json.hpp"
 
 #include <imgui/imgui.h>
@@ -32,6 +33,15 @@ bool AppErrorList::render_no_window(AppRoot& root) {
             } else {
                 const std::string text = format_error(err);
                 render_copyable_text(text);
+                if (ImGui::IsItemHovered()) {
+                    const ImVec2 min = ImGui::GetItemRectMin();
+                    const ImVec2 max = ImGui::GetItemRectMax();
+
+                    ImGui::GetWindowDrawList()->AddRect(
+                        {min.x - 5, min.y - 5}, {max.x + 5, max.y + 5},
+                        ImColor(0xff, 0xff, 0xff)
+                    );
+                }
             }
         }
     };
