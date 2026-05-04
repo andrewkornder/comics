@@ -253,7 +253,7 @@ void AppChapterReader::render_pages(AppRoot& root, PagedDisplay& dis) {
                 ImGui::Indent(viewport.y * default_aspect);
             } else {
                 const float w = viewport.y * info[i].width / info[i].height;
-                render_single_page(root, i, w, 0, 0, 1, 1);
+                render_single_page(root, i, w, 0, 0, 1, 1, true);
                 ImGui::SameLine(0.0f, 0.0f);
             }
         }
@@ -342,14 +342,14 @@ void AppChapterReader::render_pages(AppRoot& root, ScrollingDisplay& dis) {
         if (i == dis.visible.second - 1) {
             v1 = dis.offsets.second;
         }
-        const auto dim = render_single_page(root, i, width, u0, v0, u1, v1);
+        const auto dim = render_single_page(root, i, width, u0, v0, u1, v1, false);
         if (i != dis.visible.second - 1) {
             ImGui::SetCursorPos({cursor.x, cursor.y + dim.second});
         }
     }
 }
 
-std::pair<float, float> AppChapterReader::render_single_page(AppRoot& root, const std::size_t i, float width, float u0, float v0, float u1, float v1) {
+std::pair<float, float> AppChapterReader::render_single_page(AppRoot& root, const std::size_t i, float width, float u0, float v0, float u1, float v1, bool move_cursor) {
     ImGui::PushID(i);
 
     const File& file = files[i];
@@ -361,6 +361,8 @@ std::pair<float, float> AppChapterReader::render_single_page(AppRoot& root, cons
 
     const ImVec2 dim = { width, (v1 - v0) * width * file_info.height / file_info.width };
     ImGui::InvisibleButton("##canv", dim, ImGuiButtonFlags_AllowOverlap);
+
+    const ImVec2 next_cursor = ImGui::GetCursorPos();
     ImGui::SetCursorPos(cursor);
 
     if (ImGui::BeginPopupContextItem()) {
@@ -417,8 +419,11 @@ std::pair<float, float> AppChapterReader::render_single_page(AppRoot& root, cons
         ImGui::EndTooltip();
     }
 
-    ImGui::Image(id, dim, {u0, v0}, {u1, v1});
+    root.log("{} - {}x{} [{}, {}]x[{}, {}]", id, dim.x, dim.y, u0, u1, v0, v1);
+    root.images->add_imgui_image(id, dim.x, dim.y, u0, v0, u1, v1);
     ImGui::PopID();
+
+    if (move_cursor) ImGui::SetCursorPos(next_cursor);
 
     return {dim.x, dim.y};
 }

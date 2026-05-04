@@ -85,12 +85,14 @@ bool AppImageInspect::render_no_window(AppRoot& root) {
         auto [w, h] = ImGui::GetWindowSize();
         h = w * info.height / info.width;
 
-        root.images->render_image(root, file, info, w, h, u0, v0, u1, v1);
+        const auto [loaded, id] = root.images->get_image_id(file, info);
+        root.images->add_imgui_image(id, w, h, u0, v0, u1, v1);
+        ImGui::InvisibleButton("##viewer_invis_btn", {w, h});
         ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
         ImGui::SetItemKeyOwner(ImGuiKey_MouseLeft);
         ImGui::SetItemKeyOwner(ImGuiKey_R);
 
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlappedByItem)) {
+        if (ImGui::IsItemHovered()) {
             const auto [dx, dy] = !ImGui::IsMouseDown(ImGuiMouseButton_Left) ? ImVec2() : ImGui::GetIO().MouseDelta;
             auto ds = ImGui::GetIO().MouseWheel;
 

@@ -101,7 +101,7 @@ struct AppImageLoader {
     bool render_no_window(AppRoot&);
 
     bool render_empty(AppRoot&, float w, float h);
-    bool render_image(AppRoot&, const File&, const FileInfo&, float w, float h, float u0 = 0, float v0 = 0, float u1 = 1, float v1 = 1);
+    void add_imgui_image(int id, float w, float h, float u0 = 0, float v0 = 0, float u1 = 1, float v1 = 1);
     void copy_image(const File&);
     // bool render_image_ctx(AppRoot&, const File&, );
     std::pair<bool, unsigned> get_image_id(const File&, const FileInfo&);
@@ -205,7 +205,7 @@ struct AppChapterReader {
     void render_pages(AppRoot&, PagedDisplay&);
     bool render_page_counter(std::size_t page, float percentage);
 
-    std::pair<float, float> render_single_page(AppRoot&, const std::size_t i, float width, float u0, float v0, float u1, float v1);
+    std::pair<float, float> render_single_page(AppRoot&, const std::size_t i, float width, float u0, float v0, float u1, float v1, bool move_cursor = true);
 
     void jump_to(std::size_t);
     void jump_to(float);

@@ -193,8 +193,9 @@ struct AppImageLoader::ImageCache {
     }
 
     GLuint shader = 0;
+    GLuint sampler = 0;
 
-    GLuint compile_shader() {
+    static GLuint compile_shader() {
         auto compileShader = [](GLenum type, const char* source) -> GLuint {
             GLuint shader = glCreateShader(type);
             glShaderSource(shader, 1, &source, nullptr);
@@ -240,7 +241,6 @@ struct AppImageLoader::ImageCache {
                 if (Frag_UV.x < 0.0 || Frag_UV.x > 1.0 || Frag_UV.y < 0.0 || Frag_UV.y > 1.0) {
                     Out_Color = vec4(0, 0, 0, 0);
                 } else {
-                    // Multiply by Frag_Color to respect ImGui's 'tint_col' parameter
                     Out_Color = texture(Texture, Frag_UV) * Frag_Color;
                 }
             }
@@ -268,10 +268,21 @@ struct AppImageLoader::ImageCache {
         return program;
     }
 
+    static GLuint create_sampler() {
+        GLuint sampler;
+        glGenSamplers(1, &sampler);
+        glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // _MIPMAP_LINEAR);
+        glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        return sampler;
+    }
 
     std::uint32_t create_texture_for_image(int w, int h, int bands, unsigned char* data) {
         if (shader == 0) {
             shader = compile_shader();
+            assert(glGetError() == GL_NO_ERROR);
+        }
+        if (sampler == 0) {
+            sampler = create_sampler();
             assert(glGetError() == GL_NO_ERROR);
         }
 
@@ -313,15 +324,54 @@ struct AppImageLoader::ImageCache {
             glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask.data());
         }
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, internal_storage, w, h, 0, external_storage, GL_UNSIGNED_BYTE, data);
 
+        glGenerateMipmap(GL_TEXTURE_2D);
+
         glBindTexture(GL_TEXTURE_2D, 0);
+
         assert(glGetError() == GL_NO_ERROR);
         return id;
+    }
+
+    void add_imgui_image(int id, float w, float h, float u0, float v0, float u1, float v1) {
+        const auto pos = ImGui::GetCursorScreenPos();
+
+        using data_t = std::tuple<ImageCache*, GLuint, float, float, float, float>;
+        auto* viewport = ImGui::GetWindowViewport();
+        data_t data = {
+            this, id,
+            viewport->Pos.x,
+            viewport->Pos.x + viewport->Size.x,
+            viewport->Pos.y,
+            viewport->Pos.y + viewport->Size.y
+        };
+        ImGui::GetWindowDrawList()->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
+            const auto [ptr, id, L, R, T, B] = * (data_t*) cmd->UserCallbackData;
+            const auto& self = *ptr;
+
+            glUseProgram(self.shader);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, id);
+            glBindSampler(0, self.sampler);
+
+            GLint tex_loc = glGetUniformLocation(self.shader, "Texture");
+            if (tex_loc != -1) glUniform1i(tex_loc, 0);
+
+            const float ortho_projection[4][4] = {
+                { 2.0f/(R-L),   0.0f,         0.0f,   0.0f },
+                { 0.0f,         2.0f/(T-B),   0.0f,   0.0f },
+                { 0.0f,         0.0f,        -1.0f,   0.0f },
+                { (R+L)/(L-R), (T+B)/(B-T),   0.0f,   1.0f },
+            };
+            GLint proj_loc = glGetUniformLocation(self.shader, "ProjMtx");
+            if (proj_loc != -1) glUniformMatrix4fv(proj_loc, 1, GL_FALSE, &ortho_projection[0][0]);
+        }, &data, sizeof(data));
+
+        ImGui::GetWindowDrawList()->AddImage(id, pos, {pos.x + w, pos.y + h}, {u0, v0}, {u1, v1});
+        ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     }
     
     Image load_image_from_disk(std::filesystem::path path) {
@@ -345,6 +395,7 @@ struct AppImageLoader::ImageCache {
             { NonImageType::BadImage, load_image_from_disk(here / ERROR_PLACEHOLDER) }
         };
     }
+
     ~ImageCache() {
         dbg("cleaning image cache: stopping workers");
         workers.clear();  // make sure no more writes to new_loads happen
@@ -569,7 +620,7 @@ struct AppImageLoader::ImageCache {
                 );
                 ImGui::TextUnformatted(text.c_str(), text.c_str() + text.size());
                 if (ImGui::BeginItemTooltip()) {
-                    ImGui::Image(image.id, {150.0f * image.h / image.w, 150});
+                    ImGui::Image(image.id, {150.0f * image.w / image.h, 150});
                     ImGui::EndTooltip();
                 }
             }
@@ -579,57 +630,11 @@ struct AppImageLoader::ImageCache {
         return true;
     }
 
-    void add_imgui_image(int id, float w, float h, float u0, float v0, float u1, float v1) {
-        const auto pos = ImGui::GetCursorScreenPos();
-
-        ImGui::GetWindowDrawList()->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
-            const auto shader = * (GLuint*) cmd->UserCallbackData;
-            glUseProgram(shader);
-            glBindSampler(0, 0);
-
-            float L = ImGui::GetIO().DisplaySize.x * 0.0f;
-            float R = ImGui::GetIO().DisplaySize.x;
-            float T = ImGui::GetIO().DisplaySize.y * 0.0f;
-            float B = ImGui::GetIO().DisplaySize.y;
-
-            const float ortho_projection[4][4] = {
-                { 2.0f/(R-L),   0.0f,         0.0f,   0.0f },
-                { 0.0f,         2.0f/(T-B),   0.0f,   0.0f },
-                { 0.0f,         0.0f,        -1.0f,   0.0f },
-                { (R+L)/(L-R), (T+B)/(B-T),   0.0f,   1.0f },
-            };
-
-            GLint proj_loc = glGetUniformLocation(shader, "ProjMtx");
-            if (proj_loc != -1) {
-                glUniformMatrix4fv(proj_loc, 1, GL_FALSE, &ortho_projection[0][0]);
-            }
-        }, &shader);
-        ImGui::GetWindowDrawList()->AddImage(id, pos, {pos.x + w, pos.y + h}, {u0, v0}, {u1, v1});
-        ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
-    }
-
     bool render_empty(AppRoot& root, float w, float h) {
         const Image& image = placeholders.at(NonImageType::Loading);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
         add_imgui_image(image.id, w, h, 0, 0, 1, 1);
         ImGui::PopStyleVar();
-        return true;
-    }
-
-    bool render_image(AppRoot& root, const File& file, const FileInfo& info, float w, float h, float u0 = 0, float v0 = 0, float u1 = 1, float v1 = 1) {
-        const auto [loaded, image] = get(file, info);
-
-        ImGui::PushID(file.archive_path.c_str());
-        ImGui::PushID(file.filename.c_str());
-
-        const auto cursor = ImGui::GetCursorPos();
-        ImGui::SetNextItemAllowOverlap();
-        add_imgui_image(image.id, w, h, u0, v0, u1, v1);
-        ImGui::SetCursorPos(cursor);
-        ImGui::InvisibleButton("##inner_page_inv_btn", {w, h});
-
-        ImGui::PopID();
-        ImGui::PopID();
         return true;
     }
 
@@ -654,6 +659,7 @@ struct AppImageLoader::ImageCache {
     std::size_t cache_size() const {
         return cache.size();
     }
+
     std::size_t opened_archives() const {
         std::size_t cnt = 0;
         for (const auto& [_, archive] : workers) {
@@ -661,6 +667,7 @@ struct AppImageLoader::ImageCache {
         }
         return cnt;
     }
+   
     std::size_t total_archives() const {
         return workers.size();
     }
@@ -688,10 +695,10 @@ bool AppImageLoader::render_no_window(AppRoot& root){
 bool AppImageLoader::render_empty(AppRoot& root, float w, float h) {
     return cache->render_empty(root, w, h);
 }
-bool AppImageLoader::render_image(AppRoot& root, const File& file, const FileInfo& info, float w, float h, float u0, float v0, float u1, float v1) {
-    return cache->render_image(root, file, info, w, h,
-                               u0, v0, u1, v1);
+void AppImageLoader::add_imgui_image(int id, float w, float h, float u0, float v0, float u1, float v1) {
+    return cache->add_imgui_image(id, w, h, u0, v0, u1, v1);
 }
+
 std::pair<bool, unsigned> AppImageLoader::get_image_id(const File& file, const FileInfo& info) {
     return cache->get_image_id(file, info);
 }
